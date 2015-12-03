@@ -1,0 +1,157 @@
+<beans:beans xmlns="http://www.springframework.org/schema/mvc"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:p="http://www.springframework.org/schema/p" xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:cache="http://www.springframework.org/schema/cache"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/mvc 
+		http://www.springframework.org/schema/mvc/spring-mvc.xsd
+		http://www.springframework.org/schema/aop 
+		http://www.springframework.org/schema/aop/spring-aop.xsd
+		http://www.springframework.org/schema/beans 
+		http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context 
+		http://www.springframework.org/schema/context/spring-context.xsd  
+		http://www.springframework.org/schema/cache 
+        http://www.springframework.org/schema/cache/spring-cache.xsd">
+
+	<!-- DispatcherServlet Context: defines this servlet's request-processing 
+		infrastructure -->
+	<annotation-driven />
+	<!-- Handles HTTP GET requests for /resources/** by efficiently serving 
+		up static resources in the ${webappRoot}/resources directory -->
+
+	<!-- 静态资源映射 -->
+	<resources mapping="/resources/**" location="/resources/" />
+	<resources mapping="/img/**" location="/img/" />
+	<resources mapping="/js/**" location="/js/" />
+	<resources mapping="/css/**" location="/css/" />
+	<resources mapping="/styles/**" location="/styles/" />
+	<resources mapping="/fonts/**" location="/fonts/" />
+	<!-- 默认访问跳转到登录页面(即定义无需Controller的url<->view直接映射) -->
+	<view-controller path="/" view-name="forward:/index" />
+
+	 <aop:aspectj-autoproxy proxy-target-class="true" />  
+	<beans:bean class="com.training.interceptor.LogAspect" />
+
+	<interceptors>
+		<!-- 国际化操作拦截器 如果采用基于（请求/Session/Cookie）则必需配置 -->
+		<beans:bean
+			class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor" />
+
+	</interceptors>
+
+
+
+
+	<!-- 内容协商管理器 -->
+	<!--1、首先检查路径扩展名（如my.pdf）；2、其次检查Parameter（如my?format=pdf）；3、检查Accept Header -->
+	<beans:bean id="contentNegotiationManager"
+		class="org.springframework.web.accept.ContentNegotiationManagerFactoryBean">
+		<!-- 扩展名至mimeType的映射,即 /user.json => application/json -->
+		<beans:property name="favorPathExtension" value="true" />
+		<!-- 用于开启 /userinfo/123?format=json 的支持 -->
+		<beans:property name="favorParameter" value="true" />
+		<beans:property name="parameterName" value="format" />
+		<!-- 是否忽略Accept Header -->
+		<beans:property name="ignoreAcceptHeader" value="false" />
+
+		<beans:property name="mediaTypes"> <!--扩展名到MIME的映射；favorPathExtension, favorParameter是true时起作用 -->
+			<beans:value>
+				json=application/json
+				xml=application/xml
+				html=text/html
+			</beans:value>
+		</beans:property>
+		<!-- 默认的content type -->
+		<beans:property name="defaultContentType" value="text/html" />
+	</beans:bean>
+
+
+	<!-- ========================= VIEW定义 ========================= -->
+	<!-- 内容协商视图解析器；根据客户端的不同的请求决定不同的 view进行响应, 如 /blog/1.json /blog/1.xml -->
+	<!-- 会自动根据解析的contentType来决定使用哪个视图解析器（默认使用整个web应用中的viewResolver） -->
+	<beans:bean
+		class="org.springframework.web.servlet.view.ContentNegotiatingViewResolver"	
+		p:order="0">
+		<!-- 内容协商管理器 用于决定media type -->
+		<beans:property name="contentNegotiationManager" ref="contentNegotiationManager" />
+		<!-- 默认视图 放在解析链最后 -->
+		<beans:property name="defaultViews">
+			<beans:list>
+				<!--<bean class="org.springframework.web.servlet.view.json.MappingJackson2JsonView"/> -->
+				<beans:bean class="com.alibaba.fastjson.support.spring.FastJsonJsonView" />
+				<!--<bean class="org.springframework.web.servlet.view.xml.MarshallingView"/> -->
+			</beans:list>
+		</beans:property>
+	</beans:bean>
+
+	<!-- Resolves views selected for rendering by @Controllers to .jsp resources 
+		in the /WEB-INF/views directory -->
+	<beans:bean id="defaultViewResolver"
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<beans:property name="prefix" value="/WEB-INF/views/" />
+		<beans:property name="suffix" value=".jsp" />
+	</beans:bean>
+
+	<!-- 配置多文件上传 -->
+	<beans:bean id="multipartResolver"
+		class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<beans:property name="defaultEncoding">
+			<beans:value>UTF-8</beans:value>
+		</beans:property>
+		<beans:property name="maxUploadSize">
+			<!-- 上传文件大小限制为31M，31*1024*1024 -->
+			<beans:value>32505856</beans:value>
+		</beans:property>
+		<beans:property name="maxInMemorySize">
+			<beans:value>4096</beans:value>
+		</beans:property>
+	</beans:bean>
+
+
+
+	<beans:bean class="org.springframework.web.servlet.view.BeanNameViewResolver"
+		p:order="10"></beans:bean>
+
+
+	<beans:bean id="exceptionResolver"
+		class="com.training.exceptions.handler.MySimpleMappingExceptionResolver">
+		<beans:property name="defaultErrorView" value="error"></beans:property>
+		<beans:property name="exceptionAttribute" value="ex"></beans:property>
+		<beans:property name="warnLogCategory" value="WARN"></beans:property>
+		<beans:property name="exceptionMappings">
+			<beans:props>
+				<beans:prop key="com.training.exceptions.BusinessException">error-business</beans:prop>
+				<beans:prop key="com.training.exceptions.ParameterException">error-parameter</beans:prop>
+				<beans:prop key="org.apache.shiro.authc.AuthenticationException">authen</beans:prop>
+			</beans:props>
+		</beans:property>
+		<beans:property name="statusCodes">
+			<beans:props>
+				<beans:prop key="error/500">500</beans:prop>
+				<beans:prop key="error/404">404</beans:prop>
+				<beans:prop key="error/401">401</beans:prop>
+			</beans:props>
+		</beans:property>
+	</beans:bean>
+	<context:component-scan base-package="com.training">
+		<context:include-filter type="regex"
+			expression="com\.training\.[controller service dao util]\.\.*" />
+	</context:component-scan>
+
+	<!-- <cache:annotation-driven /> <beans:bean id="cacheManager" class="org.springframework.cache.ehcache.EhCacheCacheManager" 
+		p:cache-manager-ref="ehcachebean" /> Ehcache library setup <beans:bean id="ehcachebean" 
+		class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean" p:config-location="classpath:ehcache.xml" 
+		/> -->
+	<!-- generic cache manager configuration <bean id="cacheManager" class="org.springframework.cache.support.SimpleCacheManager"> 
+		<property name="caches"> <set> <bean class="org.springframework.cache.concurrent.ConcurrentMapCacheFactoryBean" 
+		p:name="NAO_CACHE" /> </set> </property> </bean> -->
+	<!-- 启用shrio授权注解拦截方式 -->
+	<aop:config proxy-target-class="true"></aop:config>
+	<beans:bean
+		class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+		<beans:property name="securityManager" ref="securityManager" />
+	</beans:bean>
+
+</beans:beans>
